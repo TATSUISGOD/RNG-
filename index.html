@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RNGバトル 完全版</title>
+<style>
+body { background:#111; color:white; font-family:sans-serif; text-align:center; }
+button { padding:10px 15px; margin:5px; font-size:16px; }
+#bossBar { width:80%; height:20px; background:#333; margin:10px auto; }
+#bossHp { height:100%; background:red; width:100%; }
+.box { border:1px solid #444; padding:10px; margin:10px; }
+</style>
+</head>
+<body>
+
+<h1>🎰 RNGバトル</h1>
+
+<div class="box">
+  💰Gold: <span id="gold">0</span>　
+  💎Dia: <span id="dia">0</span>
+</div>
+
+<div class="box">
+  🔥 攻撃力: <span id="atk">1</span><br>
+  🎯 ガチャ天井: <span id="pity">0</span>/100
+</div>
+
+<div class="box">
+  👹 BOSS Lv.<span id="bossLv">1</span>
+  <div id="bossBar"><div id="bossHp"></div></div>
+</div>
+
+<button onclick="attack()">⚔️ 攻撃</button>
+
+<div class="box">
+  <button onclick="gacha(1)">🎲 ガチャ（1回）</button>
+  <button onclick="gacha(10)">🎲 10連（ダイヤ）</button>
+</div>
+
+<div class="box" id="log"></div>
+
+<button onclick="resetSave()">🧹 データリセット</button>
+
+<script>
+// =====================
+// セーブ
+// =====================
+const SAVE_KEY = "rng_game_complete";
+
+// =====================
+// 状態
+// =====================
+let state = {
+  gold: 0,
+  dia: 0,
+  atk: 1,
+  pity: 0,
+  bossLv: 1,
+  bossHp: 100
+};
+
+function maxBossHp(){
+  return 100 + state.bossLv * 200;
+}
+
+// =====================
+// RNG
+// =====================
+function rollRarity(){
+  state.pity++;
+  if(state.pity >= 100) {
+    state.pity = 0;
+    return "SSR";
+  }
+  const r = Math.random();
+  if(r < 0.6) return "N";
+  if(r < 0.85) return "R";
+  if(r < 0.95) return "SR";
+  if(r < 0.995) return "SSR";
+  return "UR";
+}
+
+const rarityAtk = {
+  N: 1,
+  R: 3,
+  SR: 8,
+  SSR: 25,
+  UR: 100
+};
+
+// =====================
+// ガチャ
+// =====================
+function gacha(times){
+  if(times === 10 && state.dia < 1){
+    log("ダイヤが足りない");
+    return;
+  }
+  if(times === 10) state.dia--;
+
+  for(let i=0;i<times;i++){
+    const r = rollRarity();
+    state.atk += rarityAtk[r];
+    log(`🎉 ${r} を引いた！ +${rarityAtk[r]} ATK`);
+  }
+  updateUI();
+}
+
+// =====================
+// 攻撃
+// =====================
+function attack(){
+  const dmg = Math.floor(state.atk * (0.8 + Math.random()*0.4));
+  state.bossHp -= dmg;
+  log(`⚔️ ${dmg} ダメージ！`);
+  if(state.bossHp <= 0){
+    state.gold += state.bossLv * 10;
+    state.dia += state.bossLv % 5 === 0 ? 1 : 0;
+    state.bossLv++;
+    state.bossHp = maxBossHp();
+    log(`👑 BOSS撃破！ Lv.${state.bossLv}`);
+  }
+  updateUI();
+}
+
+// =====================
+// UI
+// =====================
+function updateUI(){
+  gold.textContent = state.gold;
+  dia.textContent = state.dia;
+  atk.textContent = state.atk;
+  pity.textContent = state.pity;
+  bossLv.textContent = state.bossLv;
+  bossHp.style.width =
+    Math.max(0, state.bossHp / maxBossHp() * 100) + "%";
+}
+
+function log(t){
+  logDiv.innerHTML = t + "<br>" + logDiv.innerHTML;
+}
+
+const logDiv = document.getElementById("log");
+
+// =====================
+// セーブ処理
+// =====================
+function save(){
+  localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+}
+function load(){
+  const d = localStorage.getItem(SAVE_KEY);
+  if(d){
+    try { state = JSON.parse(d); }
+    catch { localStorage.removeItem(SAVE_KEY); }
+  }
+}
+function resetSave(){
+  localStorage.removeItem(SAVE_KEY);
+  location.reload();
+}
+
+// =====================
+load();
+updateUI();
+setInterval(save, 5000);
+</script>
+
+</body>
+</html>
